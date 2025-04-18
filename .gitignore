@@ -1,0 +1,5 @@
+.idea
+.vs
+x64
+*.DotSettings.user
+*.zip
