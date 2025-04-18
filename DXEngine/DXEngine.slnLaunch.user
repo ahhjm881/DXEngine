@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "새 프로필",
+    "Projects": [
+      {
+        "Path": "DXEngine\\DXEngine.vcxproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Box\\Box.vcxproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
