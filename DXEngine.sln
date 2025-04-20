@@ -7,8 +7,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DXEngine", "DXEngine\DXEngi
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Box", "Box\Box.vcxproj", "{E1075EF6-3E5B-4ADF-98D2-02B05819EE13}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LernDxCore", "LernDxCore\LernDxCore.vcxproj", "{6817540C-5AC0-4792-B19E-F5BE11B51FE0}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -23,10 +21,6 @@ Global
 		{E1075EF6-3E5B-4ADF-98D2-02B05819EE13}.Debug|x64.Build.0 = Debug|x64
 		{E1075EF6-3E5B-4ADF-98D2-02B05819EE13}.Release|x64.ActiveCfg = Release|x64
 		{E1075EF6-3E5B-4ADF-98D2-02B05819EE13}.Release|x64.Build.0 = Release|x64
-		{6817540C-5AC0-4792-B19E-F5BE11B51FE0}.Debug|x64.ActiveCfg = Debug|x64
-		{6817540C-5AC0-4792-B19E-F5BE11B51FE0}.Debug|x64.Build.0 = Debug|x64
-		{6817540C-5AC0-4792-B19E-F5BE11B51FE0}.Release|x64.ActiveCfg = Release|x64
-		{6817540C-5AC0-4792-B19E-F5BE11B51FE0}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

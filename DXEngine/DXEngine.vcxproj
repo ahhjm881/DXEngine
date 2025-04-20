@@ -11,10 +11,21 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Common\GeometryGenerator.cpp" />
+    <ClCompile Include="Common\Timer.cpp" />
     <ClCompile Include="Core\EngineBase.cpp" />
+    <ClCompile Include="Core\SphericalCamera.cpp" />
+    <ClCompile Include="Utilities\Utility.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Common\GeometryGenerator.h" />
+    <ClInclude Include="Common\Timer.h" />
     <ClInclude Include="Core\EngineBase.h" />
+    <ClInclude Include="Core\SphericalCamera.h" />
+    <ClInclude Include="Data\Color.h" />
+    <ClInclude Include="Data\SphericalCoord.h" />
+    <ClInclude Include="Data\Vertex.h" />
+    <ClInclude Include="Utilities\Utility.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
