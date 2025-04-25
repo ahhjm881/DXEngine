@@ -9,6 +9,8 @@
 #include <d3dcompiler.h>
 #include <vector>
 
+#include "DXEngine/Data/SubMesh.h"
+
 using namespace DirectX;
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
@@ -27,7 +29,9 @@ LightingApp::LightingApp()
     SetCameraSphericalCoord(5.f, -XM_PIDIV4, XM_PIDIV4);
     SetZoomSpeed(0.01f);
 
-    XMStoreFloat4x4(&worldMatrix, XMMatrixIdentity());
+    XMStoreFloat4x4(&boxWorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+    XMStoreFloat4x4(&sphereWorldMatrix, XMMatrixTranslation(3.0f, 0.0f, 0.0f));
+    XMStoreFloat4x4(&cylinderWorldMatrix, XMMatrixTranslation(6.0f, 0.0f, 0.0f));
 }
 
 LightingApp::~LightingApp() = default;
@@ -103,6 +107,7 @@ void LightingApp::InitShaderResource()
 
     CD3D11_BUFFER_DESC bufferDesc(sizeof(XMFLOAT4X4), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC,
                                   D3D11_CPU_ACCESS_WRITE);
+
     device->CreateBuffer(&bufferDesc, nullptr, &cBuffer);
 
     immediateContext->VSSetConstantBuffers(0, 1, cBuffer.GetAddressOf());
@@ -110,57 +115,73 @@ void LightingApp::InitShaderResource()
 
 void LightingApp::InitGeomery()
 {
-    GeometryGenerator::MeshData boxMeshData = GeometryGenerator::CreateBox(1.0f, 1.0f, 1.0f);
+    const GeometryGenerator::MeshData sphereMeshData = GeometryGenerator::CreateGeodesicSphere(0.5f, 3);
+    const GeometryGenerator::MeshData boxMeshData = GeometryGenerator::CreateBox(1.0f, 1.0f, 1.0f);
+    const GeometryGenerator::MeshData cylinderMeshData = GeometryGenerator::CreateCylinder(0.5f, 0.5f, 2.0f, 5, 1);
 
-    std::vector<Vertex::PC> vertices(boxMeshData.vertices.size());
-    std::vector<UINT> indices(boxMeshData.indices.size());
+    std::vector<Vertex::PC> vertices;
+    vertices.reserve(
+        sphereMeshData.vertices.size() +
+        boxMeshData.vertices.size() +
+        cylinderMeshData.vertices.size()
+    );
 
-    for (int i = 0; i < vertices.size(); ++i)
+    std::vector<UINT> indices;
+    indices.reserve(
+        sphereMeshData.indices.size() +
+        boxMeshData.indices.size() +
+        cylinderMeshData.indices.size()
+    );
+
+    std::vector<Vertex::PC> tempVertices;
+
+    auto insertMeshData = [&](
+        const GeometryGenerator::MeshData& meshData,
+        Submesh& submesh
+    )
     {
-        vertices[i].position = boxMeshData.vertices[i].position;
-        vertices[i].color = XMFLOAT4(LinearColors::Red);
-    }
-    
-    vertices[0].color = XMFLOAT4(LinearColors::Red);
-    vertices[1].color = XMFLOAT4(LinearColors::Blue);
-    vertices[2].color = XMFLOAT4(LinearColors::Black);
-    vertices[3].color = XMFLOAT4(LinearColors::Green);
-    vertices[4].color = XMFLOAT4(LinearColors::Cyan);
-    vertices[5].color = XMFLOAT4(LinearColors::Magenta);
-    
-    for (int i = 0; i < indices.size(); ++i)
-    {
-        indices[i] = boxMeshData.indices[i];
-    }
+        tempVertices.resize(meshData.vertices.size());
 
-    indicesCount = static_cast<UINT>(indices.size());
+        for (int i = 0; i < meshData.vertices.size(); ++i)
+        {
+            tempVertices[i].position = meshData.vertices[i].position;
+            tempVertices[i].color = XMFLOAT4(LinearColors::Black);
+        }
 
-    CD3D11_BUFFER_DESC vertexBufferDesc(
+        submesh = Submesh(meshData.indices.size(), indices.size(), vertices.size());
+        vertices.insert(vertices.end(), tempVertices.begin(), tempVertices.end());
+        indices.insert(indices.end(), meshData.indices.begin(), meshData.indices.end());
+    };
+
+    insertMeshData(sphereMeshData, sphereSubmesh);
+    insertMeshData(boxMeshData, boxSubmesh);
+    insertMeshData(cylinderMeshData, cylinderSubmesh);
+
+    const CD3D11_BUFFER_DESC vertexBufferDesc(
         static_cast<UINT>(sizeof(Vertex::PC) * vertices.size()),
         D3D11_BIND_VERTEX_BUFFER,
         D3D11_USAGE_IMMUTABLE
-        );
-    D3D11_SUBRESOURCE_DATA vertexInitData
+    );
+    const D3D11_SUBRESOURCE_DATA vertexInitData
     {
         .pSysMem = vertices.data(),
     };
     device->CreateBuffer(&vertexBufferDesc, &vertexInitData, &vertexBuffer);
-    
-    CD3D11_BUFFER_DESC indexBufferDesc(
+
+    const CD3D11_BUFFER_DESC indexBufferDesc(
         static_cast<UINT>(sizeof(UINT) * indices.size()),
         D3D11_BIND_INDEX_BUFFER,
         D3D11_USAGE_IMMUTABLE
-        );
-    D3D11_SUBRESOURCE_DATA indexInitData
+    );
+    const D3D11_SUBRESOURCE_DATA indexInitData
     {
         .pSysMem = indices.data(),
     };
     device->CreateBuffer(&indexBufferDesc, &indexInitData, &indexBuffer);
 
-
     constexpr UINT strideSize[]{sizeof(Vertex::PC)};
     constexpr UINT offsets[]{0};
-    
+
     immediateContext->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), strideSize, offsets);
     immediateContext->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 }
@@ -168,7 +189,8 @@ void LightingApp::InitGeomery()
 void LightingApp::OnResize()
 {
     Super::OnResize();
-    XMStoreFloat4x4(&projectionMatrix, XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), GetAspectRatio(), 1.0f, 10000.0f));
+    XMStoreFloat4x4(&projectionMatrix,
+                    XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), GetAspectRatio(), 1.0f, 10000.0f));
 }
 
 void LightingApp::Update(float deltaSeconds)
@@ -185,14 +207,23 @@ void LightingApp::Render()
     immediateContext->ClearRenderTargetView(renderTargetView.Get(), LinearColors::LightSteelBlue);
     immediateContext->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-    const XMMATRIX wvpMatrix = XMLoadFloat4x4(&worldMatrix) * XMLoadFloat4x4(&viewMatrix) * XMLoadFloat4x4(&projectionMatrix);
-    
+    RenderObject(sphereSubmesh, sphereWorldMatrix);
+    RenderObject(boxSubmesh, boxWorldMatrix);
+    RenderObject(cylinderSubmesh, cylinderWorldMatrix);
+
+    swapChain->Present(0, 0);
+}
+
+// ReSharper disable once CppMemberFunctionMayBeConst
+void LightingApp::RenderObject(const Submesh& submesh, const XMFLOAT4X4& worldMatrix)
+{
+    const XMMATRIX wvpMatrix = XMLoadFloat4x4(&worldMatrix) * XMLoadFloat4x4(&viewMatrix) * XMLoadFloat4x4(
+        &projectionMatrix);
+
     D3D11_MAPPED_SUBRESOURCE subresource;
     immediateContext->Map(cBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &subresource);
     XMStoreFloat4x4(static_cast<XMFLOAT4X4*>(subresource.pData), wvpMatrix);
     immediateContext->Unmap(cBuffer.Get(), 0);
 
-    immediateContext->DrawIndexed(indicesCount, 0, 0);
-
-    swapChain->Present(0, 0);
+    immediateContext->DrawIndexed(submesh.indexCount, submesh.startIndexLocation, submesh.baseVertexLocation);
 }

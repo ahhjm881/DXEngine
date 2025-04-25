@@ -24,6 +24,7 @@
     <ClInclude Include="Core\SphericalCamera.h" />
     <ClInclude Include="Data\Color.h" />
     <ClInclude Include="Data\SphericalCoord.h" />
+    <ClInclude Include="Data\SubMesh.h" />
     <ClInclude Include="Data\Vertex.h" />
     <ClInclude Include="Utilities\Utility.h" />
   </ItemGroup>

@@ -1,6 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include "DXEngine/Core/SphericalCamera.h"
+#include "DXEngine/Data/SubMesh.h"
 
 class BasicShaderPass;
 
@@ -18,12 +19,15 @@ public:
     void OnResize() override;
 
 protected:
-    virtual void Update(float deltaSeconds) override;
-    virtual void Render() override;
+    void Update(float deltaSeconds) override;
+    void Render() override;
+
+private:
+    void RenderObject(const Submesh& submesh, const DirectX::XMFLOAT4X4& worldMatrix);
+    
 private:
     DirectX::XMFLOAT4X4 viewMatrix;
     DirectX::XMFLOAT4X4 projectionMatrix;
-    DirectX::XMFLOAT4X4 worldMatrix;
     DirectX::XMFLOAT3 eyePosition;
 
     ComPtr<ID3D11VertexShader> vertexShader;
@@ -34,5 +38,10 @@ private:
     ComPtr<ID3D11Buffer> vertexBuffer;
     ComPtr<ID3D11Buffer> indexBuffer;
 
-    UINT indicesCount;
+    Submesh sphereSubmesh{};
+    DirectX::XMFLOAT4X4 sphereWorldMatrix;
+    Submesh boxSubmesh{};
+    DirectX::XMFLOAT4X4 boxWorldMatrix;
+    Submesh cylinderSubmesh{};
+    DirectX::XMFLOAT4X4 cylinderWorldMatrix;
 };
