@@ -22,9 +22,9 @@ namespace Vertex
 
             D3D11_INPUT_ELEMENT_DESC
             {
-                .SemanticName = "COLOR",
+                .SemanticName = "NORMAL",
                 .SemanticIndex = 0,
-                .Format = DXGI_FORMAT_R32G32B32A32_FLOAT,
+                .Format = DXGI_FORMAT_R32G32B32_FLOAT,
                 .InputSlot = 0,
                 .AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT,
                 .InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
@@ -33,6 +33,6 @@ namespace Vertex
         };
 
         DirectX::XMFLOAT3 position;
-        DirectX::XMFLOAT4 color;
+        DirectX::XMFLOAT3 normal;
     };
 }

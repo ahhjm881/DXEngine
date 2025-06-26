@@ -2,6 +2,8 @@
 #include <Windows.h>
 #include "DXEngine/Core/SphericalCamera.h"
 #include "DXEngine/Data/SubMesh.h"
+#include "Light.h"
+
 
 class BasicShaderPass;
 
@@ -15,7 +17,7 @@ public:
 
     bool Init(HINSTANCE inInstanceHandle) override;
     void InitShaderResource();
-    void InitGeomery();
+    void InitGeometry();
     void OnResize() override;
 
 protected:
@@ -30,18 +32,27 @@ private:
     DirectX::XMFLOAT4X4 projectionMatrix;
     DirectX::XMFLOAT3 eyePosition;
 
+    DirectionalLight directionalLight;
+    
+
+
     ComPtr<ID3D11VertexShader> vertexShader;
     ComPtr<ID3D11PixelShader> pixelShader;
     ComPtr<ID3D11InputLayout> inputLayout;
-    ComPtr<ID3D11Buffer> cBuffer;
+    
+    ComPtr<ID3D11Buffer> cBufferPerObject;
+    ComPtr<ID3D11Buffer> cBufferPerFrame;
 
     ComPtr<ID3D11Buffer> vertexBuffer;
     ComPtr<ID3D11Buffer> indexBuffer;
 
     Submesh sphereSubmesh{};
     DirectX::XMFLOAT4X4 sphereWorldMatrix;
+    Material sphereMaterial;
     Submesh boxSubmesh{};
     DirectX::XMFLOAT4X4 boxWorldMatrix;
+    Material boxMaterial;
     Submesh cylinderSubmesh{};
     DirectX::XMFLOAT4X4 cylinderWorldMatrix;
+    Material cylinderMaterial;
 };

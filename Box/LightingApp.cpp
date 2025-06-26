@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "DXEngine/Data/SubMesh.h"
+#include <numbers>
 
 using namespace DirectX;
 
@@ -32,6 +33,23 @@ LightingApp::LightingApp()
     XMStoreFloat4x4(&boxWorldMatrix, XMMatrixTranslation(0.0f, 0.0f, 0.0f));
     XMStoreFloat4x4(&sphereWorldMatrix, XMMatrixTranslation(3.0f, 0.0f, 0.0f));
     XMStoreFloat4x4(&cylinderWorldMatrix, XMMatrixTranslation(6.0f, 0.0f, 0.0f));
+
+    constexpr float invSqrt3 = std::numbers::inv_sqrt3_v<float>;
+
+    directionalLight =
+    {
+        .ambient = {1.0f, 1.0f, 1.0f, 1.0f},
+        .diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
+        .specular = {1.0f, 1.0f, 1.0f, 1.0f},
+        .direction = {invSqrt3, -invSqrt3, invSqrt3},
+    };
+
+    boxMaterial =
+    {
+        .ambient = {1.0f, 0.0f, 0.0f, 1.0f},
+        .diffuse = {1.0f, 0.0f, 0.0f, 1.0f},
+        .specular = {1.0f, 1.0f, 1.0f, 1.0f},
+    };
 }
 
 LightingApp::~LightingApp() = default;
@@ -44,39 +62,81 @@ bool LightingApp::Init(HINSTANCE inInstanceHandle)
     }
 
     InitShaderResource();
-    InitGeomery();
+    InitGeometry();
     return true;
 }
+
+
+struct CBufferPerObject
+{
+    XMFLOAT4X4 wvpMatrix;
+    XMFLOAT4X4 worldInverseTransposeMatrix;
+    XMFLOAT4X4 worldMatrix;
+
+    Material material;
+};
+
+struct CBufferPerFrame
+{
+    alignas(16) XMFLOAT3 eyePosition;
+    DirectionalLight directionalLight;
+};
 
 void LightingApp::InitShaderResource()
 {
     ComPtr<ID3DBlob> vertexShaderBlob;
     ComPtr<ID3DBlob> vertexErrorShaderBlob;
-    D3DCompileFromFile
+    HRESULT hr = D3DCompileFromFile
     (
         L"Shader/box_vs.hlsl",
         nullptr,
-        nullptr,
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,
         "VS_Main",
         "vs_5_0",
         0, 0,
         &vertexShaderBlob,
         &vertexErrorShaderBlob
     );
+    if (FAILED(hr))
+    {
+        if (vertexErrorShaderBlob)
+        {
+            OutputDebugStringA((char*)vertexErrorShaderBlob->GetBufferPointer());
+            MessageBoxA(nullptr, (char*)vertexErrorShaderBlob->GetBufferPointer(), "Shader Compile Error", MB_OK);
+        }
+        else
+        {
+            MessageBoxA(nullptr, "Unknown error (no error blob returned)", "Shader Compile Error", MB_OK);
+        }
+        return;
+    }
 
     ComPtr<ID3DBlob> pixelShaderBlob;
     ComPtr<ID3DBlob> pixelErrorShaderBlob;
-    D3DCompileFromFile
+    hr = D3DCompileFromFile
     (
         L"Shader/box_ps.hlsl",
         nullptr,
-        nullptr,
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,
         "PS_Main",
         "ps_5_0",
         0, 0,
         &pixelShaderBlob,
         &pixelErrorShaderBlob
-    );
+        );
+    if (FAILED(hr))
+    {
+        if (pixelErrorShaderBlob)
+        {
+            OutputDebugStringA((char*)pixelErrorShaderBlob->GetBufferPointer());
+            MessageBoxA(nullptr, (char*)pixelErrorShaderBlob->GetBufferPointer(), "Shader Compile Error", MB_OK);
+        }
+        else
+        {
+            MessageBoxA(nullptr, "Unknown error (no error blob returned)", "Shader Compile Error", MB_OK);
+        }
+        return;
+    }
 
     device->CreateVertexShader(
         vertexShaderBlob->GetBufferPointer(),
@@ -84,6 +144,7 @@ void LightingApp::InitShaderResource()
         nullptr,
         &vertexShader
     );
+
     device->CreatePixelShader(
         pixelShaderBlob->GetBufferPointer(),
         pixelShaderBlob->GetBufferSize(),
@@ -105,15 +166,20 @@ void LightingApp::InitShaderResource()
     immediateContext->IASetInputLayout(inputLayout.Get());
     immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    CD3D11_BUFFER_DESC bufferDesc(sizeof(XMFLOAT4X4), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC,
-                                  D3D11_CPU_ACCESS_WRITE);
+    CD3D11_BUFFER_DESC perObjectCbufferDesc(sizeof(CBufferPerObject), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC,
+                                            D3D11_CPU_ACCESS_WRITE);
+    device->CreateBuffer(&perObjectCbufferDesc, nullptr, &cBufferPerObject);
+    immediateContext->VSSetConstantBuffers(0, 1, cBufferPerObject.GetAddressOf());
+    immediateContext->PSSetConstantBuffers(0, 1, cBufferPerObject.GetAddressOf());
 
-    device->CreateBuffer(&bufferDesc, nullptr, &cBuffer);
-
-    immediateContext->VSSetConstantBuffers(0, 1, cBuffer.GetAddressOf());
+    CD3D11_BUFFER_DESC perFrameCbufferDesc(sizeof(CBufferPerFrame), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC,
+                                           D3D11_CPU_ACCESS_WRITE);
+    device->CreateBuffer(&perFrameCbufferDesc, nullptr, &cBufferPerFrame);
+    immediateContext->VSSetConstantBuffers(1, 1, cBufferPerFrame.GetAddressOf());
+    immediateContext->PSSetConstantBuffers(1, 1, cBufferPerFrame.GetAddressOf());
 }
 
-void LightingApp::InitGeomery()
+void LightingApp::InitGeometry()
 {
     const GeometryGenerator::MeshData sphereMeshData = GeometryGenerator::CreateGeodesicSphere(0.5f, 3);
     const GeometryGenerator::MeshData boxMeshData = GeometryGenerator::CreateBox(1.0f, 1.0f, 1.0f);
@@ -145,7 +211,7 @@ void LightingApp::InitGeomery()
         for (int i = 0; i < meshData.vertices.size(); ++i)
         {
             tempVertices[i].position = meshData.vertices[i].position;
-            tempVertices[i].color = XMFLOAT4(LinearColors::Black);
+            tempVertices[i].normal = meshData.vertices[i].normal;
         }
 
         submesh = Submesh(meshData.indices.size(), indices.size(), vertices.size());
@@ -207,12 +273,21 @@ void LightingApp::Render()
     immediateContext->ClearRenderTargetView(renderTargetView.Get(), LinearColors::LightSteelBlue);
     immediateContext->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
+    D3D11_MAPPED_SUBRESOURCE subresource;
+    immediateContext->Map(cBufferPerFrame.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &subresource);
+    CBufferPerFrame perFrame;
+    perFrame.eyePosition = eyePosition;
+    perFrame.directionalLight = directionalLight;
+    *static_cast<CBufferPerFrame*>(subresource.pData) = perFrame;
+    immediateContext->Unmap(cBufferPerFrame.Get(), 0);
+
     RenderObject(sphereSubmesh, sphereWorldMatrix);
     RenderObject(boxSubmesh, boxWorldMatrix);
     RenderObject(cylinderSubmesh, cylinderWorldMatrix);
 
     swapChain->Present(0, 0);
 }
+
 
 // ReSharper disable once CppMemberFunctionMayBeConst
 void LightingApp::RenderObject(const Submesh& submesh, const XMFLOAT4X4& worldMatrix)
@@ -221,9 +296,14 @@ void LightingApp::RenderObject(const Submesh& submesh, const XMFLOAT4X4& worldMa
         &projectionMatrix);
 
     D3D11_MAPPED_SUBRESOURCE subresource;
-    immediateContext->Map(cBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &subresource);
-    XMStoreFloat4x4(static_cast<XMFLOAT4X4*>(subresource.pData), wvpMatrix);
-    immediateContext->Unmap(cBuffer.Get(), 0);
+    immediateContext->Map(cBufferPerObject.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &subresource);
+    CBufferPerObject perObject{};
+    XMStoreFloat4x4(&perObject.wvpMatrix, wvpMatrix);
+    perObject.worldMatrix = worldMatrix;
+    XMStoreFloat4x4(&perObject.worldInverseTransposeMatrix,XMMatrixTranspose(XMMatrixInverse(nullptr, XMLoadFloat4x4(&worldMatrix))));
+    perObject.material = boxMaterial;
+    *static_cast<CBufferPerObject*>(subresource.pData) = perObject;
+    immediateContext->Unmap(cBufferPerObject.Get(), 0);
 
     immediateContext->DrawIndexed(submesh.indexCount, submesh.startIndexLocation, submesh.baseVertexLocation);
 }

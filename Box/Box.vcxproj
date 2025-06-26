@@ -94,7 +94,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Light.h" />
     <ClInclude Include="LightingApp.h" />
+    <ClInclude Include="Shader\LightingCommon.hlsli" />
+    <ClInclude Include="Shader\LightingFunction.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
